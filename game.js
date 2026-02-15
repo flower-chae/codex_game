@@ -87,7 +87,14 @@ function create() {
   shootKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
   restartKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
 
-  touchInput = { left: false, right: false, shoot: false };
+  touchInput = {
+    left: false,
+    right: false,
+    shoot: false,
+    moveActive: false,
+    moveTargetX: (ROAD_LEFT + ROAD_RIGHT) / 2,
+    movePointerId: null
+  };
   this.input.addPointer(3);
   createTouchControls.call(this);
 
@@ -220,6 +227,17 @@ function handlePlayerMove() {
   const speed = 410;
   const left = cursors.left.isDown || touchInput.left;
   const right = cursors.right.isDown || touchInput.right;
+  const minX = ROAD_LEFT + 26;
+  const maxX = ROAD_RIGHT - 26;
+
+  if (touchInput.moveActive) {
+    const targetX = Phaser.Math.Clamp(touchInput.moveTargetX, minX, maxX);
+    player.x = Phaser.Math.Linear(player.x, targetX, 0.34);
+    player.setVelocityX(0);
+    player.setVelocityY(0);
+    player.y = PLAYER_Y;
+    return;
+  }
 
   if (left && !right) {
     player.setVelocityX(-speed);
@@ -232,28 +250,45 @@ function handlePlayerMove() {
   player.setVelocityY(0);
   player.y = PLAYER_Y;
 
-  const minX = ROAD_LEFT + 26;
-  const maxX = ROAD_RIGHT - 26;
   player.x = Phaser.Math.Clamp(player.x, minX, maxX);
 }
 
 function createTouchControls() {
   const y = PLAYER_Y + 14;
   const centerX = (ROAD_LEFT + ROAD_RIGHT) / 2;
-  const leftButton = makeTouchButton(this, centerX - 122, y, 38, 0x455a64, '<');
-  const rightButton = makeTouchButton(this, centerX - 56, y, 38, 0x455a64, '>');
-  const shootButton = makeTouchButton(this, centerX + 126, y, 52, 0xe65100, 'FIRE');
+  const movePad = this.add.rectangle(centerX - 58, y, 160, 84, 0x455a64, 0.26).setDepth(39);
+  movePad.setStrokeStyle(2, 0xffffff, 0.3);
+  movePad.setInteractive();
+  this.add.text(centerX - 58, y, 'DRAG', {
+    fontSize: '18px',
+    color: '#eceff1'
+  }).setOrigin(0.5).setDepth(40);
 
-  bindTouchButton(this, leftButton, 'left');
-  bindTouchButton(this, rightButton, 'right');
+  const shootButton = makeTouchButton(this, centerX + 126, y, 52, 0xe65100, 'FIRE');
   bindTouchButton(this, shootButton, 'shoot');
 
-  this.input.on('pointerup', () => {
+  movePad.on('pointerdown', (pointer) => {
+    touchInput.moveActive = true;
+    touchInput.movePointerId = pointer.id;
+    touchInput.moveTargetX = pointer.worldX;
+    movePad.setFillStyle(0xffffff, 0.24);
+  });
+
+  this.input.on('pointermove', (pointer) => {
+    if (touchInput.moveActive && touchInput.movePointerId === pointer.id && pointer.isDown) {
+      touchInput.moveTargetX = pointer.worldX;
+    }
+  });
+
+  this.input.on('pointerup', (pointer) => {
+    if (touchInput.movePointerId === pointer.id) {
+      touchInput.moveActive = false;
+      touchInput.movePointerId = null;
+      movePad.setFillStyle(0x455a64, 0.26);
+    }
     touchInput.left = false;
     touchInput.right = false;
     touchInput.shoot = false;
-    resetTouchStyle(leftButton, 'left');
-    resetTouchStyle(rightButton, 'right');
     resetTouchStyle(shootButton, 'shoot');
   });
 }
