@@ -1,0 +1,56 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Run and Gun Prototype</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(180deg, #223046 0%, #4b6a53 100%);
+      color: #f5f5f5;
+      font-family: sans-serif;
+      min-height: 100%;
+    }
+
+    .wrap {
+      max-width: 460px;
+      margin: 0 auto;
+      padding: 8px;
+    }
+
+    .hint {
+      text-align: center;
+      margin: 4px 0 8px;
+      font-size: 13px;
+      color: #d0d7de;
+    }
+
+    #game-root {
+      border: 2px solid #0d1117;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 12px 22px rgba(0, 0, 0, 0.35);
+      background: #2a3f5f;
+      width: 100%;
+      aspect-ratio: 420 / 760;
+    }
+
+    #game-root canvas {
+      width: 100% !important;
+      height: auto !important;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hint">터치: 좌/우/FIRE 버튼 | 키보드: ← → Space | 재시작: R</div>
+    <div id="game-root"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
+  <script src="./game.js"></script>
+</body>
+</html>
