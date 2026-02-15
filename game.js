@@ -53,6 +53,7 @@ let messageText;
 let roadLines;
 let sideTrees;
 let touchInput;
+let restartButton;
 
 function preload() {
   makeRectTexture(this, 'playerTex', 62, 44, 0x1e88e5);
@@ -97,6 +98,7 @@ function create() {
     fontSize: '15px',
     color: '#263238'
   }).setDepth(30);
+  restartButton = createRestartButton.call(this);
 
   state.enemySpawnAt = this.time.now + 500;
 }
@@ -236,10 +238,11 @@ function handlePlayerMove() {
 }
 
 function createTouchControls() {
-  const y = GAME_HEIGHT - 170;
-  const leftButton = makeTouchButton(this, 54, y, 42, 0x455a64, '<');
-  const rightButton = makeTouchButton(this, 122, y, 42, 0x455a64, '>');
-  const shootButton = makeTouchButton(this, GAME_WIDTH - 64, y, 56, 0xe65100, 'FIRE');
+  const y = PLAYER_Y + 14;
+  const centerX = (ROAD_LEFT + ROAD_RIGHT) / 2;
+  const leftButton = makeTouchButton(this, centerX - 122, y, 38, 0x455a64, '<');
+  const rightButton = makeTouchButton(this, centerX - 56, y, 38, 0x455a64, '>');
+  const shootButton = makeTouchButton(this, centerX + 126, y, 52, 0xe65100, 'FIRE');
 
   bindTouchButton(this, leftButton, 'left');
   bindTouchButton(this, rightButton, 'right');
@@ -253,6 +256,23 @@ function createTouchControls() {
     resetTouchStyle(rightButton, 'right');
     resetTouchStyle(shootButton, 'shoot');
   });
+}
+
+function createRestartButton() {
+  const bg = this.add.rectangle(GAME_WIDTH - 66, 28, 104, 34, 0x263238, 0.62).setDepth(42);
+  bg.setStrokeStyle(2, 0xffffff, 0.45);
+  const label = this.add.text(GAME_WIDTH - 66, 28, 'RESTART', {
+    fontSize: '14px',
+    color: '#ffffff'
+  }).setOrigin(0.5).setDepth(43);
+
+  bg.setInteractive({ useHandCursor: true });
+  bg.on('pointerdown', () => {
+    this.scene.restart();
+  });
+
+  bg.label = label;
+  return bg;
 }
 
 function makeTouchButton(scene, x, y, radius, color, label) {
