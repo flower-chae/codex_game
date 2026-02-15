@@ -8,6 +8,7 @@ const state = {
   score: 0,
   hp: 3,
   weaponLevel: 1,
+  nextWeaponDecayAt: 0,
   nextFireAt: 0,
   enemySpawnAt: 0,
   dead: false
@@ -41,7 +42,6 @@ new Phaser.Game(config);
 
 let player;
 let cursors;
-let shootKey;
 let restartKey;
 let bullets;
 let enemies;
@@ -60,8 +60,7 @@ function preload() {
   makeRectTexture(this, 'enemyTex', 34, 34, 0xbf360c);
   makeRectTexture(this, 'enemyHeavyTex', 44, 44, 0x7f0000);
   makeRectTexture(this, 'bulletTex', 8, 20, 0xffee58);
-  makeRectTexture(this, 'powerUpTex', 20, 20, 0x42a5f5);
-  makeRectTexture(this, 'powerDownTex', 20, 20, 0xef5350);
+  makeRectTexture(this, 'powerTex', 20, 20, 0xffb300);
   makeRectTexture(this, 'roadLineTex', 8, 34, 0xeceff1);
   makeRectTexture(this, 'treeTex', 18, 30, 0x2e7d32);
 }
@@ -84,16 +83,12 @@ function create() {
   this.physics.add.overlap(player, powerUps, onGetPowerUp, null, this);
 
   cursors = this.input.keyboard.createCursorKeys();
-  shootKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
   restartKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
 
   touchInput = {
-    left: false,
-    right: false,
-    shoot: false,
-    moveActive: false,
-    moveTargetX: (ROAD_LEFT + ROAD_RIGHT) / 2,
-    movePointerId: null
+    touchActive: false,
+    touchX: (ROAD_LEFT + ROAD_RIGHT) / 2,
+    pointerId: null
   };
   this.input.addPointer(3);
   createTouchControls.call(this);
@@ -125,9 +120,15 @@ function update() {
 
   handlePlayerMove();
 
-  const isShooting = shootKey.isDown || touchInput.shoot;
-  if (isShooting && this.time.now >= state.nextFireAt) {
+  if (this.time.now >= state.nextFireAt) {
     shootBullet.call(this);
+  }
+
+  if (state.weaponLevel > 1 && this.time.now >= state.nextWeaponDecayAt) {
+    state.weaponLevel -= 1;
+    weaponText.setText('Weapon Lv: ' + state.weaponLevel);
+    messageText.setText('시간 경과로 화력 감소');
+    state.nextWeaponDecayAt = this.time.now + 5000;
   }
 
   if (this.time.now >= state.enemySpawnAt) {
@@ -225,17 +226,23 @@ function scrollEnvironment() {
 
 function handlePlayerMove() {
   const speed = 410;
-  const left = cursors.left.isDown || touchInput.left;
-  const right = cursors.right.isDown || touchInput.right;
+  const left = cursors.left.isDown;
+  const right = cursors.right.isDown;
   const minX = ROAD_LEFT + 26;
   const maxX = ROAD_RIGHT - 26;
 
-  if (touchInput.moveActive) {
-    const targetX = Phaser.Math.Clamp(touchInput.moveTargetX, minX, maxX);
-    player.x = Phaser.Math.Linear(player.x, targetX, 0.34);
-    player.setVelocityX(0);
+  if (touchInput.touchActive) {
+    const targetX = Phaser.Math.Clamp(touchInput.touchX, minX, maxX);
+    if (targetX < player.x - 10) {
+      player.setVelocityX(-speed);
+    } else if (targetX > player.x + 10) {
+      player.setVelocityX(speed);
+    } else {
+      player.setVelocityX(0);
+    }
     player.setVelocityY(0);
     player.y = PLAYER_Y;
+    player.x = Phaser.Math.Clamp(player.x, minX, maxX);
     return;
   }
 
@@ -254,42 +261,23 @@ function handlePlayerMove() {
 }
 
 function createTouchControls() {
-  const y = PLAYER_Y + 14;
-  const centerX = (ROAD_LEFT + ROAD_RIGHT) / 2;
-  const movePad = this.add.rectangle(centerX - 58, y, 160, 84, 0x455a64, 0.26).setDepth(39);
-  movePad.setStrokeStyle(2, 0xffffff, 0.3);
-  movePad.setInteractive();
-  this.add.text(centerX - 58, y, 'DRAG', {
-    fontSize: '18px',
-    color: '#eceff1'
-  }).setOrigin(0.5).setDepth(40);
-
-  const shootButton = makeTouchButton(this, centerX + 126, y, 52, 0xe65100, 'FIRE');
-  bindTouchButton(this, shootButton, 'shoot');
-
-  movePad.on('pointerdown', (pointer) => {
-    touchInput.moveActive = true;
-    touchInput.movePointerId = pointer.id;
-    touchInput.moveTargetX = pointer.worldX;
-    movePad.setFillStyle(0xffffff, 0.24);
+  this.input.on('pointerdown', (pointer) => {
+    touchInput.touchActive = true;
+    touchInput.pointerId = pointer.id;
+    touchInput.touchX = pointer.worldX;
   });
 
   this.input.on('pointermove', (pointer) => {
-    if (touchInput.moveActive && touchInput.movePointerId === pointer.id && pointer.isDown) {
-      touchInput.moveTargetX = pointer.worldX;
+    if (touchInput.touchActive && touchInput.pointerId === pointer.id && pointer.isDown) {
+      touchInput.touchX = pointer.worldX;
     }
   });
 
   this.input.on('pointerup', (pointer) => {
-    if (touchInput.movePointerId === pointer.id) {
-      touchInput.moveActive = false;
-      touchInput.movePointerId = null;
-      movePad.setFillStyle(0x455a64, 0.26);
+    if (touchInput.pointerId === pointer.id) {
+      touchInput.touchActive = false;
+      touchInput.pointerId = null;
     }
-    touchInput.left = false;
-    touchInput.right = false;
-    touchInput.shoot = false;
-    resetTouchStyle(shootButton, 'shoot');
   });
 }
 
@@ -308,41 +296,6 @@ function createRestartButton() {
 
   bg.label = label;
   return bg;
-}
-
-function makeTouchButton(scene, x, y, radius, color, label) {
-  const circle = scene.add.circle(x, y, radius, color, 0.55).setDepth(40);
-  const text = scene.add.text(x, y, label, {
-    fontSize: label === 'FIRE' ? '18px' : '28px',
-    color: '#ffffff'
-  }).setOrigin(0.5).setDepth(41);
-
-  circle.baseColor = color;
-  circle.setStrokeStyle(2, 0xffffff, 0.5);
-  circle.setInteractive();
-  circle.label = text;
-  return circle;
-}
-
-function bindTouchButton(scene, button, key) {
-  const onDown = () => {
-    touchInput[key] = true;
-    button.setFillStyle(0xffffff, 0.35);
-  };
-
-  const onUp = () => {
-    touchInput[key] = false;
-    resetTouchStyle(button, key);
-  };
-
-  button.on('pointerdown', onDown);
-  button.on('pointerup', onUp);
-  button.on('pointerout', onUp);
-}
-
-function resetTouchStyle(button, key) {
-  const color = key === 'shoot' ? 0xe65100 : 0x455a64;
-  button.setFillStyle(color, 0.55);
 }
 
 function shootBullet() {
@@ -380,6 +333,7 @@ function shootBullet() {
 
 function spawnEnemyWave() {
   const roll = Phaser.Math.Between(1, 100);
+  const elapsed = this.time.now / 1000;
 
   if (roll <= 34) {
     spawnEnemy.call(this, Phaser.Math.Between(ROAD_LEFT + 22, ROAD_RIGHT - 22), false);
@@ -393,6 +347,15 @@ function spawnEnemyWave() {
     return;
   }
 
+  if (elapsed > 55 && roll <= 90) {
+    const leftLane = Phaser.Math.Between(ROAD_LEFT + 22, ROAD_LEFT + 70);
+    const rightLane = Phaser.Math.Between(ROAD_RIGHT - 70, ROAD_RIGHT - 22);
+    spawnEnemy.call(this, leftLane, false);
+    spawnEnemy.call(this, rightLane, false);
+    spawnEnemy.call(this, Phaser.Math.Between(ROAD_LEFT + 40, ROAD_RIGHT - 40), false);
+    return;
+  }
+
   const left = Phaser.Math.Between(ROAD_LEFT + 34, ROAD_LEFT + 94);
   const right = Phaser.Math.Between(ROAD_RIGHT - 94, ROAD_RIGHT - 34);
   spawnEnemy.call(this, left, false);
@@ -401,26 +364,74 @@ function spawnEnemyWave() {
 }
 
 function spawnEnemy(x, heavy) {
+  const tier = pickEnemyTier(this.time.now, heavy);
   let enemy;
 
-  if (heavy) {
+  if (tier.kind === 'heavy') {
     enemy = enemies.create(x, -30, 'enemyHeavyTex');
-    enemy.fallSpeed = Phaser.Math.FloatBetween(2.0, 2.8);
-    enemy.scoreValue = 180;
   } else {
     enemy = enemies.create(x, -30, 'enemyTex');
-    enemy.fallSpeed = Phaser.Math.FloatBetween(2.9, 4.2);
-    enemy.scoreValue = 100;
   }
 
+  enemy.hp = tier.hp;
+  enemy.fallSpeed = Phaser.Math.FloatBetween(tier.speedMin, tier.speedMax);
+  enemy.scoreValue = tier.score;
+  enemy.setTint(tier.color);
+  enemy.enemyType = tier.type;
+
   enemy.body.setAllowGravity(false);
-  enemy.drift = Phaser.Math.FloatBetween(-0.45, 0.45);
+  enemy.drift = Phaser.Math.FloatBetween(-tier.drift, tier.drift);
+}
+
+function pickEnemyTier(nowMs, heavySpawn) {
+  const elapsed = nowMs / 1000;
+  const roll = Phaser.Math.Between(1, 100);
+
+  if (elapsed < 25) {
+    return { kind: 'light', type: 'normal', hp: 1, score: 100, color: 0xbf360c, speedMin: 2.9, speedMax: 4.2, drift: 0.45 };
+  }
+
+  if (elapsed < 60) {
+    if (roll <= 18) {
+      return { kind: 'light', type: 'runner', hp: 1, score: 150, color: 0x00acc1, speedMin: 4.8, speedMax: 6.2, drift: 0.9 };
+    }
+    if (roll <= 35 || heavySpawn) {
+      return { kind: 'heavy', type: 'armor', hp: 3, score: 220, color: 0xd32f2f, speedMin: 2.2, speedMax: 3.1, drift: 0.35 };
+    }
+    return { kind: 'light', type: 'normal', hp: 1, score: 110, color: 0xbf360c, speedMin: 3.0, speedMax: 4.3, drift: 0.45 };
+  }
+
+  if (roll <= 18) {
+    return { kind: 'light', type: 'runner', hp: 2, score: 260, color: 0x00bcd4, speedMin: 5.5, speedMax: 7.0, drift: 1.15 };
+  }
+  if (roll <= 38 || heavySpawn) {
+    return { kind: 'heavy', type: 'tank', hp: 6, score: 420, color: 0x4e342e, speedMin: 1.6, speedMax: 2.3, drift: 0.22 };
+  }
+  if (roll <= 65) {
+    return { kind: 'heavy', type: 'armor', hp: 4, score: 300, color: 0x8e24aa, speedMin: 2.0, speedMax: 2.9, drift: 0.32 };
+  }
+  if (roll <= 82) {
+    return { kind: 'light', type: 'brute', hp: 3, score: 240, color: 0xe53935, speedMin: 2.7, speedMax: 3.5, drift: 0.5 };
+  }
+  return { kind: 'light', type: 'normal', hp: 1, score: 130, color: 0xbf360c, speedMin: 3.3, speedMax: 4.6, drift: 0.48 };
 }
 
 function onBulletHitEnemy(bullet, enemy) {
   if (!bullet.active || !enemy.active) return;
 
   bullet.destroy();
+  enemy.hp -= bullet.damage || 1;
+
+  if (enemy.hp > 0) {
+    enemy.setAlpha(0.45);
+    this.time.delayedCall(60, () => {
+      if (enemy.active) {
+        enemy.setAlpha(1);
+      }
+    });
+    return;
+  }
+
   state.score += enemy.scoreValue || 100;
   scoreText.setText('Score: ' + state.score);
 
@@ -434,35 +445,39 @@ function onBulletHitEnemy(bullet, enemy) {
 
 function spawnPowerUp(x, y) {
   const isPowerUp = Phaser.Math.Between(1, 100) <= 60;
-  const tex = isPowerUp ? 'powerUpTex' : 'powerDownTex';
-  const item = powerUps.create(x, y, tex);
+  const item = powerUps.create(x, y, 'powerTex');
   item.effect = isPowerUp ? 'up' : 'down';
   item.body.setAllowGravity(false);
 }
 
 function onGetPowerUp(playerObj, item) {
   item.destroy();
+  messageText.setText('아이템 획득!');
 
   if (item.effect === 'up' && state.weaponLevel < 4) {
     state.weaponLevel += 1;
     weaponText.setText('Weapon Lv: ' + state.weaponLevel);
-    messageText.setText('파란 아이템: 화력 강화!');
+    if (state.weaponLevel > 1) {
+      state.nextWeaponDecayAt = this.time.now + 5000;
+    }
     return;
   }
 
   if (item.effect === 'down' && state.weaponLevel > 1) {
     state.weaponLevel -= 1;
     weaponText.setText('Weapon Lv: ' + state.weaponLevel);
-    messageText.setText('빨간 아이템: 화력 감소!');
+    if (state.weaponLevel > 1) {
+      state.nextWeaponDecayAt = this.time.now + 5000;
+    } else {
+      state.nextWeaponDecayAt = 0;
+    }
     return;
   }
 
   if (item.effect === 'up') {
     state.score += 120;
     scoreText.setText('Score: ' + state.score);
-    messageText.setText('파란 아이템: 최대 레벨 보너스 +120');
-  } else {
-    messageText.setText('빨간 아이템: 최소 레벨 유지');
+    messageText.setText('아이템 보너스 +120');
   }
 }
 
@@ -499,6 +514,7 @@ function resetState() {
   state.score = 0;
   state.hp = 3;
   state.weaponLevel = 1;
+  state.nextWeaponDecayAt = 0;
   state.nextFireAt = 0;
   state.enemySpawnAt = 0;
   state.dead = false;
