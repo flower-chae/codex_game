@@ -236,7 +236,7 @@ function handlePlayerMove() {
 }
 
 function createTouchControls() {
-  const y = GAME_HEIGHT - 120;
+  const y = GAME_HEIGHT - 170;
   const leftButton = makeTouchButton(this, 54, y, 42, 0x455a64, '<');
   const rightButton = makeTouchButton(this, 122, y, 42, 0x455a64, '>');
   const shootButton = makeTouchButton(this, GAME_WIDTH - 64, y, 56, 0xe65100, 'FIRE');
