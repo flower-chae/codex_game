@@ -93,7 +93,7 @@ function create() {
   scoreText = this.add.text(12, 12, 'Score: 0', { fontSize: '19px', color: '#102027' }).setDepth(30);
   hpText = this.add.text(12, 36, 'HP: 3', { fontSize: '18px', color: '#1b5e20' }).setDepth(30);
   weaponText = this.add.text(12, 60, 'Weapon Lv: 1', { fontSize: '18px', color: '#ef6c00' }).setDepth(30);
-  messageText = this.add.text(12, 84, '터치/키보드 지원', {
+  messageText = this.add.text(12, 84, 'HP 3: 충돌/적 돌파 각각 1 감소', {
     fontSize: '15px',
     color: '#263238'
   }).setDepth(30);
@@ -236,7 +236,7 @@ function handlePlayerMove() {
 }
 
 function createTouchControls() {
-  const y = GAME_HEIGHT - 44;
+  const y = GAME_HEIGHT - 120;
   const leftButton = makeTouchButton(this, 54, y, 42, 0x455a64, '<');
   const rightButton = makeTouchButton(this, 122, y, 42, 0x455a64, '>');
   const shootButton = makeTouchButton(this, GAME_WIDTH - 64, y, 56, 0xe65100, 'FIRE');
